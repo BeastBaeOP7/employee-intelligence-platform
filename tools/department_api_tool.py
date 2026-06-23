@@ -110,16 +110,19 @@ def get_all_department_stats():
     finally:
         db.close()
 
-def get_promotion_candidates():
+def get_promotion_candidates(department: str = None):
     """Returns ranked promotion candidates based on rating >= 4.5 and exp >= 5."""
     db = SessionLocal()
     try:
-        # Business Rule: rating >= 4.5, exp >= 5
-        # Rank by rating, exp, and salary (lower salary first within same rating/exp for 'band' logic)
-        candidates = db.query(Employee).filter(
+        query = db.query(Employee).filter(
             Employee.performance_rating >= 4.5,
             Employee.experience_years >= 5
-        ).order_by(
+        )
+        
+        if department:
+            query = query.filter(Employee.department.ilike(f"{department}"))
+            
+        candidates = query.order_by(
             Employee.performance_rating.desc(), 
             Employee.experience_years.desc(),
             Employee.salary.asc()

@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 from graph.state import AgentState
 
 from agents.controller_agent import controller_agent
+from agents.domain_guardrail_agent import domain_guardrail_agent
 from agents.authorization_agent import authorization_agent
 from agents.team_lookup_agent import team_lookup_agent
 from agents.employee_lookup_agent import employee_lookup_agent
@@ -22,18 +23,12 @@ def denial_response(state):
         "trace": trace
     }
 
-def route_after_analysis(state):
-    intents = state.get("intents", [])
-    print("AFTER ANALYSIS")
-    print("INTENTS:", state.get("intents"))
-    print("ACCESS:", state.get("access_granted"))
-    # Only export if access was granted
-    if "export_excel" in intents and state.get("access_granted"):
-        return "excel_export_agent"
-    return END
+def route_after_guardrail(state):
+    if state.get("guardrail_triggered", False):
+        return "end"
+    return "authorization_agent"
 
 def route_after_analysis(state):
-
     print("AFTER ANALYSIS")
     print("INTENTS =", state.get("intents"))
     print("ACCESS =", state.get("access_granted"))
@@ -49,6 +44,7 @@ def build_graph():
     builder = StateGraph(AgentState)
 
     builder.add_node("controller_agent", controller_agent)
+    builder.add_node("domain_guardrail_agent", domain_guardrail_agent)
     builder.add_node("authorization_agent", authorization_agent)
     builder.add_node("denial_response", denial_response)
     builder.add_node("team_lookup_agent", team_lookup_agent)
@@ -59,7 +55,16 @@ def build_graph():
 
     builder.set_entry_point("controller_agent")
 
-    builder.add_edge("controller_agent", "authorization_agent")
+    builder.add_edge("controller_agent", "domain_guardrail_agent")
+
+    builder.add_conditional_edges(
+        "domain_guardrail_agent",
+        route_after_guardrail,
+        {
+            "authorization_agent": "authorization_agent",
+            "end": END
+        }
+    )
 
     builder.add_conditional_edges(
         "authorization_agent",

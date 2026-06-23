@@ -21,6 +21,9 @@ def employee_lookup_agent(state):
         trace.append(f"Employee Lookup Agent → Retrieved data for {employee_name} (Managed by: {employee['manager_name']})")
     else:
         trace.append(f"Employee Lookup Agent → No profile found for '{employee_name}'")
+        print("\n========== EMPLOYEE LOOKUP ==========")
+        print(employee)
+        print("====================================")
 
     return {
         "employee_data": employee,

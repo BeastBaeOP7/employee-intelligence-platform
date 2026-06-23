@@ -49,157 +49,164 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Helper to get all employees for selection
-def get_all_employees():
+# Helper to verify credentials
+def verify_login(email, password):
     db = SessionLocal()
     try:
-        return db.query(Employee).all()
+        user = db.query(Employee).filter(Employee.email == email, Employee.password == password).first()
+        if user:
+            return {
+                "employee_id": user.employee_id,
+                "name": user.name,
+                "role": user.role,
+                "department": user.department
+            }
+        return None
     finally:
         db.close()
 
-employees = get_all_employees()
-employee_options = {f"{e.name} ({e.role})": e for e in employees}
-
-# Sidebar - User Selection & Trace
-with st.sidebar:
-    st.title("🔐 Authentication")
-    selected_name = st.selectbox(
-        "Select Current User (Identity Simulation)",
-        options=list(employee_options.keys()),
-        index=0
-    )
-    current_employee = employee_options[selected_name]
-    st.session_state.current_user = {
-        "employee_id": current_employee.employee_id,
-        "name": current_employee.name,
-        "role": current_employee.role,
-        "department": current_employee.department
-    }
-    
-    st.divider()
-    st.subheader("🕵️ Agent Communication Trace")
-    trace_container = st.container()
-    
-    # Persistent trace display
-    if "last_trace" in st.session_state:
-        for step in st.session_state.last_trace:
-            if "→" in step:
-                parts = step.split("→")
-                formatted_step = f"<span class='agent-name'>{parts[0].strip()}</span> <span style='color:white'>→</span> <span class='agent-action'>{parts[1].strip()}</span>"
-            else:
-                formatted_step = step
-            st.markdown(f"<div class='agent-trace'>{formatted_step}</div>", unsafe_allow_html=True)
-
-st.title("🏢 Multi-Agent Employee Intelligence")
-st.caption(f"Logged in as: **{current_employee.name}** | Role: **{current_employee.role}** | Dept: **{current_employee.department}**")
-
+# Session State Initialization
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-# Chat Input
-query = st.chat_input(
-    "Ask a question about employees, departments, or request exports..."
-)
+# Logout Function
+def logout():
+    st.session_state.logged_in = False
+    st.session_state.current_user = None
+    st.session_state.messages = []
+    if "last_trace" in st.session_state:
+        del st.session_state.last_trace
+    st.rerun()
 
-if query:
+# Login Page
+def login_page():
+    st.markdown("""
+        <div style='text-align: center; padding: 2rem;'>
+            <h1 style='color: #2e7bcf;'>🏢 Employee Intelligence Platform</h1>
+            <p style='color: #666;'>Secure Enterprise Access</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            st.subheader("🔐 Login")
+            email = st.text_input("Email")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Sign In", use_container_width=True)
+            
+            if submit:
+                user_info = verify_login(email, password)
+                if user_info:
+                    st.session_state.logged_in = True
+                    st.session_state.current_user = user_info
+                    st.success("Login Successful!")
+                    st.rerun()
+                else:
+                    st.error("Invalid email or password")
 
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": query
-        }
-    )
+# Main Application Logic
+if not st.session_state.logged_in:
+    login_page()
+else:
+    # Sidebar - User Info & Trace
+    with st.sidebar:
+        st.markdown(f"""
+            <div style='background-color: #f1f3f9; padding: 1.5rem; border-radius: 10px; margin-bottom: 1rem; border-left: 5px solid #2e7bcf;'>
+                <h4 style='margin:0; color: #1e3a8a;'>👤 {st.session_state.current_user['name']}</h4>
+                <p style='margin:0; font-size: 0.9rem; color: #4b5563;'><b>Role:</b> {st.session_state.current_user['role']}</p>
+                <p style='margin:0; font-size: 0.9rem; color: #4b5563;'><b>Dept:</b> {st.session_state.current_user['department']}</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🚪 Logout", use_container_width=True):
+            logout()
+        
+        st.divider()
+        st.subheader("🕵️ Agent Communication Trace")
+        trace_container = st.container()
+        
+        # Persistent trace display
+        if "last_trace" in st.session_state:
+            for step in st.session_state.last_trace:
+                if "→" in step:
+                    parts = step.split("→")
+                    formatted_step = f"<span class='agent-name'>{parts[0].strip()}</span> <span style='color:white'>→</span> <span class='agent-action'>{parts[1].strip()}</span>"
+                else:
+                    formatted_step = step
+                st.markdown(f"<div class='agent-trace'>{formatted_step}</div>", unsafe_allow_html=True)
 
-    with st.chat_message("user"):
-        st.markdown(query)
+    st.title("👨‍💼 Multi-Agent Employee Intelligence")
+    st.caption(f"Authenticated as: **{st.session_state.current_user['name']}**")
 
-    with st.chat_message("assistant"):
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-        with st.spinner("Agents are collaborating..."):
+    # Chat Input
+    query = st.chat_input("Ask a question about employees, departments, or request exports...")
 
-            # Prepare state for graph
-            input_state = {
-                "user_query": query,
-                "current_user": st.session_state.current_user,
-                "employee_name": st.session_state.get("last_employee"),
-                "department_name": st.session_state.get("last_dept"),
-                "trace": []
-            }
+    if query:
+        st.session_state.messages.append({"role": "user", "content": query})
+        with st.chat_message("user"):
+            st.markdown(query)
 
-            # Execute Graph
-            result = graph.invoke(input_state)
+        with st.chat_message("assistant"):
+            with st.spinner("Agents are collaborating..."):
+                # Prepare state for graph
+                input_state = {
+                    "user_query": query,
+                    "current_user": st.session_state.current_user,
+                    "employee_name": st.session_state.get("last_employee"),
+                    "department_name": st.session_state.get("last_dept"),
+                    "trace": []
+                }
 
-            print(result)
+                # Execute Graph
+                result = graph.invoke(input_state)
 
-            # Update Context
-            if result.get("employee_name"):
-                st.session_state.last_employee = result["employee_name"]
+                # Update Context
+                if result.get("employee_name"):
+                    st.session_state.last_employee = result["employee_name"]
+                if result.get("department_name"):
+                    st.session_state.last_dept = result["department_name"]
 
-            if result.get("department_name"):
-                st.session_state.last_dept = result["department_name"]
+                # Store trace
+                st.session_state.last_trace = result.get("trace", [])
 
-            # Store trace
-            st.session_state.last_trace = result.get(
-                "trace",
-                []
-            )
+                # Determine which field to use for response
+                # If guardrail triggered, result['analysis'] contains the guardrail message
+                # If analytics successful, result['analysis'] contains the findings
+                response = result.get("analysis", "✅ Action completed.")
+                
+                st.markdown(response)
 
-            # Display response
-            response = result.get(
-                "analysis",
-                "✅ Report generated successfully."
-            )
-
-            st.markdown(response)
-
-            # Excel Download Button
-            if result.get("excel_path"):
-
-                excel_file = result["excel_path"]
-
-                st.success(
-                    "✅ Excel report generated successfully!"
-                )
-
-                with open(excel_file, "rb") as file:
-
-                    st.download_button(
-                        label="📥 Download Excel Report",
-                        data=file,
-                        file_name=excel_file.split("/")[-1],
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-
-            # Update Trace Sidebar
-            with trace_container:
-
-                for step in st.session_state.last_trace:
-
-                    if "→" in step:
-
-                        parts = step.split("→")
-
-                        formatted_step = (
-                            f"<span class='agent-name'>{parts[0].strip()}</span> "
-                            f"<span style='color:white'>→</span> "
-                            f"<span class='agent-action'>{parts[1].strip()}</span>"
+                # Excel Download Button
+                if result.get("excel_path"):
+                    excel_file = result["excel_path"]
+                    st.success("✅ Excel report generated successfully!")
+                    with open(excel_file, "rb") as file:
+                        st.download_button(
+                            label="📥 Download Excel Report",
+                            data=file,
+                            file_name=excel_file.split("/")[-1],
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         )
 
-                    else:
-                        formatted_step = step
+                # Update Trace Sidebar
+                with trace_container:
+                    if "last_trace" in st.session_state:
+                        for step in st.session_state.last_trace:
+                            if "→" in step:
+                                parts = step.split("→")
+                                formatted_step = f"<span class='agent-name'>{parts[0].strip()}</span> <span style='color:white'>→</span> <span class='agent-action'>{parts[1].strip()}</span>"
+                            else:
+                                formatted_step = step
+                            st.markdown(f"<div class='agent-trace'>{formatted_step}</div>", unsafe_allow_html=True)
 
-                    st.markdown(
-                        f"<div class='agent-trace'>{formatted_step}</div>",
-                        unsafe_allow_html=True
-                    )
-
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": response
-        }
-    )
+        st.session_state.messages.append({"role": "assistant", "content": response})

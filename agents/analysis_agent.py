@@ -3,6 +3,10 @@ from config.github_models_llm import get_llm
 llm = get_llm()
 
 def analysis_agent(state):
+    print("\n========== ANALYSIS AGENT ==========")
+    print("employee_data =", state.get("employee_data"))
+    print("intents =", state.get("intents"))
+    print("===================================")
     query = state["user_query"]
     employee = state.get("employee_data")
     stats = state.get("department_stats")
@@ -31,11 +35,12 @@ Context Data:
 - Promotion Candidates: {promotion_candidates}
 
 Instructions:
-- If asked "Show all department statistics", use 'organization_data.department_stats'.
-- If asked "Who are the department heads?", use 'organization_data.heads'.
-- If asked about "Promotion analysis" or "ready for promotion", use 'promotion_candidates'.
-- If asked about a team or hierarchy, use the 'full_hierarchy' tree provided in Team/Hierarchy Data.
-- Be professional, concise, and highly accurate. NEVER fall back to "I don't have access" if the data is present in the context above.
+1. Employee Profiles: Use 'Employee Data' for details. Include manager info (name/designation) if present and asked about the manager.
+2. Salary Queries: Compare individual salary against 'Department Statistics' or 'Organization Data'.
+3. Manager/Team: If asked "Who manages [Name]?", explicitly state the manager's name and designation from 'Employee Data'.
+4. Hierarchy: Use 'full_hierarchy' tree for team/reporting structure questions.
+5. Promotions: Use 'Promotion Candidates' list. If specific to a department, mention that context.
+6. Organization: For wide-scale questions, use 'Organization-Wide Data'.
 
 User Query:
 {query}

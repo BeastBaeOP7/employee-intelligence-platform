@@ -7,3 +7,4 @@ exports/
 .streamlit/
 .idea/
 .vscode/
+employees.db    

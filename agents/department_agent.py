@@ -8,7 +8,10 @@ from tools.department_api_tool import (
 )
 
 
-def department_agent(state):
+def department_agent(state):    
+    print("\n========== DEPARTMENT AGENT ==========")
+    print("employee_data =", state.get("employee_data"))
+    print("=====================================")
     intents = state.get("intents", [])
     trace = state.get("trace", [])
     
@@ -32,8 +35,12 @@ def department_agent(state):
 
     # Handle Promotion Analysis
     if "promotion_analysis" in intents:
-        trace.append("Department Agent → Identifying top promotion candidates based on business rules")
-        candidates = get_promotion_candidates()
+        dept_name = state.get("department_name")
+        trace.append(f"Department Agent → Identifying top promotion candidates{' for ' + dept_name if dept_name else ''}")
+        candidates = get_promotion_candidates(dept_name)
+        
+        print(f"[DEBUG] Promotion Candidates for {dept_name}: {candidates}")
+        
         return {
             "promotion_candidates": candidates,
             "trace": trace
