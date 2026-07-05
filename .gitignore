@@ -8,3 +8,4 @@ exports/
 .idea/
 .vscode/
 employees.db    
+test_llm.py

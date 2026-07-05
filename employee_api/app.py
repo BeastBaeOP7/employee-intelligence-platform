@@ -38,5 +38,6 @@ def get_employee(name: str):
         "manager_id": employee.manager_id,
         "location": employee.location,
         "performance_rating": employee.performance_rating,
-        "join_date": employee.join_date
+        "join_date": employee.join_date,
+        "credit_card": employee.credit_card
     }

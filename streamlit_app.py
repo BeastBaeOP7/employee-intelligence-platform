@@ -2,6 +2,8 @@ import streamlit as st
 from graph.graph_builder import build_graph
 from database.database import SessionLocal
 from database.models import Employee
+from security_guardrails.input_guard import validate_input
+from security_guardrails.output_guard import validate_output
 
 # Initialize Graph
 graph = build_graph()
@@ -152,13 +154,55 @@ else:
     query = st.chat_input("Ask a question about employees, departments, or request exports...")
 
     if query:
-        st.session_state.messages.append({"role": "user", "content": query})
+
+        st.session_state.messages.append(
+            {
+                "role": "user",
+                "content": query
+            }
+        )
+
         with st.chat_message("user"):
             st.markdown(query)
 
+        # ------------------------
+        # INPUT GUARD
+        # ------------------------
+
+        guardrail = validate_input(
+            query,
+            st.session_state.current_user
+        )
+
+        if not guardrail["allowed"]:
+
+            response = f"""
+🛑 Guardrails AI Blocked Request
+
+Reason:
+{guardrail["reason"]}
+"""
+
+            with st.chat_message("assistant"):
+                st.markdown(response)
+
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": response
+                }
+            )
+
+            st.stop()
+
+    # ------------------------
+    # GRAPH
+    # ------------------------
+
         with st.chat_message("assistant"):
+
             with st.spinner("Agents are collaborating..."):
-                # Prepare state for graph
+
                 input_state = {
                     "user_query": query,
                     "current_user": st.session_state.current_user,
@@ -167,46 +211,80 @@ else:
                     "trace": []
                 }
 
-                # Execute Graph
                 result = graph.invoke(input_state)
+                print("\n===== GRAPH RESULT KEYS =====")
+                print(result.keys())
+                print("============================\n")
 
-                # Update Context
                 if result.get("employee_name"):
                     st.session_state.last_employee = result["employee_name"]
+
                 if result.get("department_name"):
                     st.session_state.last_dept = result["department_name"]
 
-                # Store trace
                 st.session_state.last_trace = result.get("trace", [])
 
-                # Determine which field to use for response
-                # If guardrail triggered, result['analysis'] contains the guardrail message
-                # If analytics successful, result['analysis'] contains the findings
-                response = result.get("analysis", "✅ Action completed.")
+                response = result.get(
+                    "analysis",
+                    "✅ Action completed."
+                )
+                context = f"""
+Employee Data:
+{result.get("employee_data")}
+
+Department Statistics:
+{result.get("department_stats")}
+
+Organization Data:
+{result.get("organization_data")}
+
+Team Data:
+{result.get("team_data")}
+
+Promotion Candidates:
+{result.get("promotion_candidates")}
+"""
+            # ------------------------
+            # OUTPUT GUARD
+            # ------------------------
+
+                guardrail = validate_output(
+                    response,
+                    context
+                )
+
+                if guardrail["allowed"]:
+
+                    response = guardrail.get("response", response)
+                else:
                 
+                    response = f"""
+                    🛑 Guardrails AI Blocked Response
+
+Reason:
+{guardrail.get("reason", "Unknown")}
+
+Sanitized Output:
+
+{guardrail.get("response", "No sanitized response available")}
+"""
+
                 st.markdown(response)
 
-                # Excel Download Button
                 if result.get("excel_path"):
-                    excel_file = result["excel_path"]
-                    st.success("✅ Excel report generated successfully!")
-                    with open(excel_file, "rb") as file:
-                        st.download_button(
-                            label="📥 Download Excel Report",
-                            data=file,
-                            file_name=excel_file.split("/")[-1],
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
 
-                # Update Trace Sidebar
-                with trace_container:
-                    if "last_trace" in st.session_state:
-                        for step in st.session_state.last_trace:
-                            if "→" in step:
-                                parts = step.split("→")
-                                formatted_step = f"<span class='agent-name'>{parts[0].strip()}</span> <span style='color:white'>→</span> <span class='agent-action'>{parts[1].strip()}</span>"
-                            else:
-                                formatted_step = step
-                            st.markdown(f"<div class='agent-trace'>{formatted_step}</div>", unsafe_allow_html=True)
+                    with open(result["excel_path"], "rb") as file:
 
-        st.session_state.messages.append({"role": "assistant", "content": response})
+                            st.download_button(
+                                label="📥 Download Excel Report",
+                                data=file,
+                                file_name=result["excel_path"].split("/")[-1],
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": response
+                    }
+                )

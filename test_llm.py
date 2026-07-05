@@ -1,13 +1,14 @@
-from dotenv import load_dotenv
-import os
-from langchain_openai import ChatOpenAI
+from validator import RestrictToTopic
 
-load_dotenv()
-
-llm = ChatOpenAI(
-    model=os.getenv("MODEL_NAME", "gpt-4o-mini"),
-    api_key=os.getenv("GITHUB_TOKEN"),
-    base_url="https://models.inference.ai.azure.com",
+validator = RestrictToTopic(
+    valid_topics=[
+        "Employee Profiles",
+        "Salary Analytics",
+        "Department Analytics"
+    ],
+    disable_classifier=False,
+    disable_llm=True
 )
 
-print(llm.invoke("hello"))
+print(validator.validate("Who manages Ryan Cooper?", {}))
+print(validator.validate("Who won IPL 2026?", {}))

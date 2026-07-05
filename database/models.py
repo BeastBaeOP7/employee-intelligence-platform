@@ -21,4 +21,5 @@ class Employee(Base):
     location = Column(String, nullable=False)
     performance_rating = Column(Float, nullable=False)
     join_date = Column(String, nullable=False)
+    credit_card = Column(String(20), nullable=True)
 

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "validators": {
+    "guardrails/regex_match": {
+      "import_path": "guardrails_grhub_regex_match",
+      "exports": [
+        "RegexMatch"
+      ],
+      "installed_at": "2026-06-24T16:24:04.673722+00:00",
+      "package_name": "guardrails-grhub-regex-match"
+    },
+    "guardrails/toxic_language": {
+      "import_path": "guardrails_grhub_toxic_language",
+      "exports": [
+        "ToxicLanguage"
+      ],
+      "installed_at": "2026-06-24T16:28:29.029087+00:00",
+      "package_name": "guardrails-grhub-toxic-language"
+    },
+    "guardrails/guardrails_pii": {
+      "import_path": "guardrails_grhub_guardrails_pii",
+      "exports": [
+        "GuardrailsPII"
+      ],
+      "installed_at": "2026-06-25T05:20:52.369853+00:00",
+      "package_name": "guardrails-grhub-guardrails-pii"
+    }
+  }
+}

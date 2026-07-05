@@ -19,7 +19,7 @@ def analysis_agent(state):
 You are an AI Employee Analytics Assistant.
 
 Your responsibilities:
-1. Explain employee profiles.
+1. For employee profile requests, output every key present in Employee Data exactly once. Do not skip fields such as credit_card or email.
 2. Answer salary-related questions.
 3. Handle manager and team-level queries.
 4. Compare data with department/organization averages.
