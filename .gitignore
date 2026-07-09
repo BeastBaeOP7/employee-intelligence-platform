@@ -1,11 +1,35 @@
-venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
 .env
-exports/
-*.xlsx
-.streamlit/
-.idea/
+
+# IDE
 .vscode/
-employees.db    
-test_llm.py
+.idea/
+
+# macOS
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# SQLite
+*.db
+
+# Excel outputs
+*.xlsx
+
+# Python build
+dist/
+build/
+*.egg-info/

@@ -1,110 +1,201 @@
-from database.database import SessionLocal
-from database.models import Employee
 from typing import Dict, Any
 
-def get_employee_metadata(name: str):
+from database.database import SessionLocal
+from database.models import Employee
+
+
+# ------------------------------------------------------------------
+# Helper
+# ------------------------------------------------------------------
+
+def get_target_employee(name: str):
+    """Returns the employee object used only for authorization checks."""
+    if not name:
+        return None
+
     db = SessionLocal()
     try:
-        # Only fetch metadata needed for RBAC
-        return db.query(Employee).filter(Employee.name.ilike(f"%{name}%")).first()
+        return (
+            db.query(Employee)
+            .filter(Employee.name.ilike(f"%{name}%"))
+            .first()
+        )
     finally:
         db.close()
 
+
+# ------------------------------------------------------------------
+# Authorization Agent
+# ------------------------------------------------------------------
+
 def authorization_agent(state: Dict[str, Any]):
+
     current_user = state.get("current_user")
     trace = state.get("trace", [])
-    
-    if not current_user:
-        auth_msg = "Access Denied: No active identity found."
-        trace.append(f"Authorization Agent → Decision: DENIED | Reason: No user session.")
-        return {"access_granted": False, "auth_message": auth_msg, "trace": trace}
 
-    user_name = current_user.get("name")
-    user_role = current_user.get("role")
-    user_dept = current_user.get("department", "").upper()
-    user_id = current_user.get("employee_id")
+    print("\n========== AUTHORIZATION AGENT ==========")
+
+    if not current_user:
+        print("No authenticated user.")
+        print("========================================")
+
+        trace.append(
+            "Authorization Agent → DENIED | No authenticated user."
+        )
+
+        return {
+            "access_granted": False,
+            "auth_message": "Access Denied: No active identity found.",
+            "trace": trace,
+        }
 
     employee_name = state.get("employee_name")
-    department_name = state.get("department_name", "").upper() if state.get("department_name") else None
-    
-    trace.append(f"Authorization Agent → User: {user_name} | Role: {user_role} | Dept: {user_dept}")
+    department_name = state.get("department_name")
+
+    print(f"Current User : {current_user['name']}")
+    print(f"Role         : {current_user['role']}")
+    print(f"Employee     : {employee_name}")
+    print(f"Department   : {department_name}")
+    print("----------------------------------------")
+
+    user_role = current_user["role"]
+    user_id = current_user["employee_id"]
+    user_department = current_user.get("department", "").upper()
+
+    target = get_target_employee(employee_name)
 
     access_granted = False
     reason = ""
 
-    # CEO & HR HEAD: Elevated Permissions
-    if user_role == 'CEO':
+    # ==========================================================
+    # CEO
+    # ==========================================================
+
+    if user_role == "CEO":
+
         access_granted = True
-        reason = "CEO has full organization visibility."
-    
-    elif user_role == 'HR_HEAD':
-        target = get_employee_metadata(employee_name) if employee_name else None
-        if target and target.role == 'CEO':
+        reason = "CEO has organization-wide access."
+
+    # ==========================================================
+    # HR HEAD
+    # ==========================================================
+
+    elif user_role == "HR_HEAD":
+
+        if target and target.role == "CEO":
             access_granted = False
-            reason = "HR Head cannot access Executive (CEO) data."
+            reason = "HR Head cannot access CEO information."
+
         else:
             access_granted = True
-            reason = "HR Head has departmental authority for all other staff."
+            reason = "HR Head has access to all employees except CEO."
 
-    # DEPT DIRECTOR: Strict Departmental Boundary
-    elif user_role == 'DEPT_DIRECTOR':
-        if employee_name:
-            target = get_employee_metadata(employee_name)
-            if target and target.department.upper() == user_dept:
+    # ==========================================================
+    # DEPARTMENT DIRECTOR
+    # ==========================================================
+
+    elif user_role == "DEPT_DIRECTOR":
+
+        if target:
+
+            if target.department.upper() == user_department:
                 access_granted = True
-                reason = f"Target is within the {user_dept} department."
+                reason = "Target employee belongs to same department."
+
             else:
                 access_granted = False
-                reason = f"Cross-department access is not permitted. User is in {user_dept}, Target is in {target.department if target else 'Unknown'}."
+                reason = (
+                    f"Cross-department access denied "
+                    f"({user_department} → {target.department})."
+                )
+
         elif department_name:
-            if department_name == user_dept:
-                access_granted = True
-                reason = f"Authorized for {user_dept} analytics."
-            else:
-                access_granted = False
-                reason = f"Access denied. Directors are restricted to {user_dept} analytics."
 
-    # MANAGER: Direct Reports Only
-    elif user_role == 'MANAGER':
-        if employee_name:
-            target = get_employee_metadata(employee_name)
-            if target:
-                if target.employee_id == user_id:
-                    access_granted = True
-                    reason = "Self-access permitted."
-                elif target.manager_id == user_id:
-                    access_granted = True
-                    reason = "Target is a direct report."
-                else:
-                    access_granted = False
-                    reason = f"Target {target.name} does not report to you."
+            if department_name.upper() == user_department:
+                access_granted = True
+                reason = "Department analytics allowed."
+
             else:
                 access_granted = False
-                reason = "Target employee not found."
+                reason = "Directors can access only their own department."
+
         else:
             access_granted = False
-            reason = "Managers cannot access wide-scale analytics."
+            reason = "Department not specified."
 
-    # EMPLOYEE: Self Only
-    elif user_role == 'EMPLOYEE':
-        if employee_name:
-            target = get_employee_metadata(employee_name)
-            if target and target.employee_id == user_id:
+    # ==========================================================
+    # MANAGER
+    # ==========================================================
+
+    elif user_role == "MANAGER":
+
+        if target:
+
+            if target.employee_id == user_id:
                 access_granted = True
-                reason = "Self-access permitted."
+                reason = "Self access."
+
+            elif target.manager_id == user_id:
+                access_granted = True
+                reason = "Employee is your direct report."
+
             else:
                 access_granted = False
-                reason = "Employees can only access their own profile."
-        else:
-             access_granted = False
-             reason = "Employees have no analytics permissions."
+                reason = "Employee is not your direct report."
 
-    status = "ACCESS GRANTED" if access_granted else "ACCESS DENIED"
-    trace.append(f"Authorization Agent → Decision: {status}")
-    trace.append(f"Authorization Agent → Reason: {reason}")
+        else:
+            access_granted = False
+            reason = "Employee not found."
+
+    # ==========================================================
+    # EMPLOYEE
+    # ==========================================================
+
+    elif user_role == "EMPLOYEE":
+
+        if target:
+
+            if target.employee_id == user_id:
+                access_granted = True
+                reason = "Self access."
+
+            else:
+                access_granted = False
+                reason = "Employees may only access their own profile."
+
+        else:
+            access_granted = False
+            reason = "Employee not found."
+
+    # ==========================================================
+    # Unknown Role
+    # ==========================================================
+
+    else:
+
+        access_granted = False
+        reason = "Unknown role."
+
+    # ------------------------------------------------------------------
+
+    decision = "GRANTED" if access_granted else "DENIED"
+
+    print("\nDecision")
+    print("------------------------")
+    print(f"Access : {decision}")
+    print(f"Reason : {reason}")
+    print("========================================\n")
+
+    trace.append(
+        f"Authorization Agent → {decision} | {reason}"
+    )
 
     return {
         "access_granted": access_granted,
-        "auth_message": reason if not access_granted else f"Authorized: {reason}",
-        "trace": trace
+        "auth_message": (
+            f"Authorized: {reason}"
+            if access_granted
+            else reason
+        ),
+        "trace": trace,
     }
