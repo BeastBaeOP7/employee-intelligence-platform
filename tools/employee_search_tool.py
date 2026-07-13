@@ -1,28 +1,34 @@
-import requests
+from database.database import SessionLocal
+from database.models import Employee
 
 
 def find_employee_by_name(name: str):
-
+    db = SessionLocal()
     try:
-
-        response = requests.get(
-            f"http://127.0.0.1:8000/employee/{name}",
-            timeout=5
+        employee = (
+            db.query(Employee)
+            .filter(Employee.name.ilike(f"%{name}%"))
+            .first()
         )
-
-        print("STATUS:", response.status_code)
-        print("BODY:", response.text)
-
-        if response.status_code != 200:
+        if not employee:
             return None
-
-        data = response.json()
-
-        if "error" in data:
-            return None
-
-        return data
-
+        return {
+            "employee_id": employee.employee_id,
+            "name": employee.name,
+            "email": employee.email,
+            "department": employee.department,
+            "designation": employee.designation,
+            "role": employee.role,
+            "salary": employee.salary,
+            "experience_years": employee.experience_years,
+            "manager_id": employee.manager_id,
+            "location": employee.location,
+            "performance_rating": employee.performance_rating,
+            "join_date": employee.join_date,
+            "credit_card": employee.credit_card,
+        }
     except Exception as e:
-        print("REQUEST ERROR:", e)
+        print("DB ERROR:", e)
         return None
+    finally:
+        db.close()

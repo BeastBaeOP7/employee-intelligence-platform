@@ -9,7 +9,7 @@ Responsibilities:
 - No LLM reasoning — pure data retrieval only.
 """
 
-import requests
+
 from typing import Dict, Any
 from security_guardrails.rbac_filter import filter_employee
 
@@ -31,21 +31,36 @@ from tools.department_api_tool import (
 # ---------------------------------------------------------------------------
 
 def _find_employee_by_name(name: str):
-    """Fetch employee record by name via the REST API."""
+    """Fetch employee record by name directly from SQLite via SQLAlchemy."""
+    db = SessionLocal()
     try:
-        response = requests.get(
-            f"http://127.0.0.1:8000/employee/{name}",
-            timeout=5,
+        employee = (
+            db.query(Employee)
+            .filter(Employee.name.ilike(f"%{name}%"))
+            .first()
         )
-        if response.status_code != 200:
+        if not employee:
             return None
-        data = response.json()
-        if "error" in data:
-            return None
-        return data
+        return {
+            "employee_id": employee.employee_id,
+            "name": employee.name,
+            "email": employee.email,
+            "department": employee.department,
+            "designation": employee.designation,
+            "role": employee.role,
+            "salary": employee.salary,
+            "experience_years": employee.experience_years,
+            "manager_id": employee.manager_id,
+            "location": employee.location,
+            "performance_rating": employee.performance_rating,
+            "join_date": employee.join_date,
+            "credit_card": employee.credit_card,
+        }
     except Exception as e:
-        print(f"[Retrieval Agent] Employee API error: {e}")
+        print(f"[Retrieval Agent] DB error: {e}")
         return None
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------

@@ -123,7 +123,7 @@ class SecurityGuardrailsEngine:
         custom_swift_recognizer = PatternRecognizer(
             supported_entity="SWIFT_CODE",
             patterns=[
-                Pattern(name="swift_bank", regex=r"\b[A-Za-z]{4}[A-Za-z]{2}[A-Za-z0-9]{2}([A-Za-z0-9]{3})?\b", score=0.8)
+                Pattern(name="swift_bank", regex=r"\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?\b", score=0.8)
             ],
             context=["swift", "bic", "swiftcode", "bankcode"]
         )
