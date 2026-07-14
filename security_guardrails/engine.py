@@ -1,5 +1,5 @@
 import json
-from guardrails.hub import GuardrailsPII
+from guardrails_validators.guardrails_pii.validator import GuardrailsPII
 from validator import RestrictToTopic
 from security_guardrails.validators.hallucination import HallucinationValidator
 from security_guardrails.validators.sql_injection import SQLInjectionValidator

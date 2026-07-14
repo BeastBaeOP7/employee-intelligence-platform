@@ -1,4 +1,4 @@
-from guardrails_grhub_provenance_llm import ProvenanceLLM
+from guardrails_validators.provenance_llm.validator import ProvenanceLLM
 from config.github_models_llm import get_llm
 
 

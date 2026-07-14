@@ -48,7 +48,3 @@ pydantic
 numpy
 faker
 GitPython
-
-git+https://github.com/guardrails-ai/guardrails_pii.git
-git+https://github.com/guardrails-ai/provenance_llm.git
-git+https://github.com/tryolabs/restricttotopic.git
